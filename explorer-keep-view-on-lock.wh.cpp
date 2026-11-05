@@ -1,7 +1,7 @@
 // ==WindhawkMod==
 // @id              explorer-keep-view-on-lock
 // @name            Explorer Keep View On Lock
-// @description     Stops Explorer file lists from losing scroll position and selection after Win+L lock/unlock
+// @description     Stops Explorer file lists from losing scroll position and selection after lock/unlock or sleep/resume
 // @version         1.1.0
 // @author          slowargo
 // @github          https://github.com/slowargo
@@ -13,7 +13,7 @@
 /*
 # Explorer Keep View On Lock
 
-On lock (Win+L) Windows broadcasts `WM_SETTINGCHANGE("ImmersiveColorSet")`
+On lock (Win+L, and when going to sleep) Windows broadcasts `WM_SETTINGCHANGE("ImmersiveColorSet")`
 twice even when no color/theme setting changed. Explorer folder windows react
 by rebuilding the items view, which resets scroll position and selection.
 

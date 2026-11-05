@@ -1,16 +1,16 @@
 # Explorer Keep View On Lock
 
-A [Windhawk](https://windhawk.net/) mod that stops File Explorer from losing its scroll position and selection when you lock and unlock Windows (Win+L).
+A [Windhawk](https://windhawk.net/) mod that stops File Explorer from losing its scroll position and selection when you lock and unlock Windows (Win+L) or wake it from sleep.
 
 [中文说明](#中文说明)
 
 ## The problem
 
-You scroll down a big folder in File Explorer, select a file, press Win+L, unlock. Back in Explorer, the list has jumped to the top and the selection may be gone. It happens even if you unlock right away.
+You scroll down a big folder in File Explorer, select a file, then lock (Win+L) or put the PC to sleep. After unlocking or waking, the list has jumped to the top and the selection may be gone. With locking, it happens even if you unlock right away.
 
 ## How it works
 
-When the session locks, Windows broadcasts `WM_SETTINGCHANGE("ImmersiveColorSet")` to all windows, even though no color or theme setting changed. Explorer folder windows react by rebuilding their item view, and that resets scroll position and selection.
+When the session locks (including when going to sleep), Windows broadcasts `WM_SETTINGCHANGE("ImmersiveColorSet")` to all windows, even though no color or theme setting changed. Explorer folder windows react by rebuilding their item view, and that resets scroll position and selection.
 
 The mod subclasses Explorer folder windows (`CabinetWClass`). For each window it keeps a snapshot of the color settings: light/dark mode, accent color, transparency, accent on title bars, current theme, high contrast scheme, and system colors.
 
@@ -47,9 +47,9 @@ No license has been chosen yet.
 
 ## 中文说明
 
-一个 [Windhawk](https://windhawk.net/) mod：Win+L 锁屏再解锁后，资源管理器的滚动位置和选中的文件不再丢失。
+一个 [Windhawk](https://windhawk.net/) mod：Win+L 锁屏再解锁，或者睡眠唤醒后，资源管理器的滚动位置和选中的文件不再丢失。
 
-**原因**：锁屏时 Windows 会向所有窗口广播 `WM_SETTINGCHANGE("ImmersiveColorSet")`，即使主题和颜色设置都没有变化。资源管理器收到后会重建文件列表，滚动位置和选中项随之被重置。
+**原因**：锁屏时（进入睡眠时也会锁屏）Windows 会向所有窗口广播 `WM_SETTINGCHANGE("ImmersiveColorSet")`，即使主题和颜色设置都没有变化。资源管理器收到后会重建文件列表，滚动位置和选中项随之被重置。
 
 **做法**：mod 只作用于资源管理器的文件夹窗口，每个窗口各自保存一份颜色设置的快照。
 
