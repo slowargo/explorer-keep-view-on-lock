@@ -1,26 +1,60 @@
-# Explorer Keep View On Lock (Windhawk mod)
+# Explorer Keep View On Lock
 
-## 问题
-Win+L 锁屏后（即使立刻解锁），资源管理器文件列表的滚动位置和选中项丢失。
+A [Windhawk](https://windhawk.net/) mod that stops File Explorer from losing its scroll position and selection when you lock and unlock Windows (Win+L).
 
-## 原因（2026-11-05 实测）
-- 锁屏瞬间 Windows 连发两次 `WM_SETTINGCHANGE("ImmersiveColorSet")`，即使主题/颜色没变。
-- 资源管理器收到后在原窗口内重建 items view（DirectUIHWND 句柄不变），滚动和选中被重置。
-- 手动广播同一消息可 100% 复现；已安装的 Windhawk explorer mod 均不处理该消息，与它们无关。
-- 无显示器断开、无 DPI/分辨率变化、explorer.exe 未崩溃。
+[中文说明](#中文说明)
 
-## 修复
-子类化 `CabinetWClass`，收到 `ImmersiveColorSet` 时用**该窗口自己的**颜色设置快照比较
-（AppsUseLightTheme / SystemUsesLightTheme / EnableTransparency / ColorPrevalence /
-DWM ColorPrevalence / AccentColor / ColorizationColor / AccentColorMenu / CurrentTheme /
-高对比度及其配色方案 / 系统颜色），没变化就吞掉，有变化则放行。
-吞掉后约 400 ms 再检查一次，若设置已变化则补发通知（应对先广播后写注册表的程序）。
-只影响资源管理器文件夹窗口，不影响任务栏。
+## The problem
 
-## 安装
-Windhawk → 「创建新 Mod」→ 用 `explorer-keep-view-on-lock.wh.cpp` 全部内容替换编辑器内容 →
-「编译 Mod」→ 退出编辑器并启用。
+You scroll down a big folder in File Explorer, select a file, press Win+L, unlock. Back in Explorer, the list has jumped to the top and the selection may be gone. It happens even if you unlock right away.
 
-## 验证
-先滚动并选中文件，然后执行广播脚本或 Win+L 锁屏再解锁，位置应保持。
-设置中打开 Verbose log 可在 Windhawk 日志看到 `blocked (no color change)`。
+## How it works
+
+When the session locks, Windows broadcasts `WM_SETTINGCHANGE("ImmersiveColorSet")` to all windows, even though no color or theme setting changed. Explorer folder windows react by rebuilding their item view, and that resets scroll position and selection.
+
+The mod subclasses Explorer folder windows (`CabinetWClass`). For each window it keeps a snapshot of the color settings: light/dark mode, accent color, transparency, accent on title bars, current theme, high contrast scheme, and system colors.
+
+- If a notification arrives and the snapshot is unchanged, the mod drops it.
+- If something actually changed, the notification is passed through, so real theme and accent switches still apply.
+- When a notification is dropped, the settings are checked again about 400 ms later. If they changed in the meantime, the notification is delivered then. This covers programs that broadcast before they write the new settings.
+
+Only Explorer folder windows are affected. The taskbar, Start menu and other apps still receive the notification as usual.
+
+## Install
+
+1. Install [Windhawk](https://windhawk.net/).
+2. In Windhawk, click **Create a new mod**.
+3. Replace the editor contents with [`explorer-keep-view-on-lock.wh.cpp`](explorer-keep-view-on-lock.wh.cpp).
+4. Click **Compile Mod**, then exit the editor. The mod is enabled immediately; no Explorer restart is needed.
+
+To uninstall, disable or remove the mod in Windhawk.
+
+## Settings
+
+| Setting | Default | Description |
+|---|---|---|
+| Verbose log | off | Writes a line to the Windhawk log for every `ImmersiveColorSet` notification, saying whether it was passed or blocked. |
+
+## Compatibility
+
+Tested on Windows 11 25H2 (build 26200) with Windhawk 1.7.3. It works alongside other Explorer mods, such as tab or double-click mods.
+
+## License
+
+No license has been chosen yet.
+
+---
+
+## 中文说明
+
+一个 [Windhawk](https://windhawk.net/) mod：Win+L 锁屏再解锁后，资源管理器的滚动位置和选中的文件不再丢失。
+
+**原因**：锁屏时 Windows 会向所有窗口广播 `WM_SETTINGCHANGE("ImmersiveColorSet")`，即使主题和颜色设置都没有变化。资源管理器收到后会重建文件列表，滚动位置和选中项随之被重置。
+
+**做法**：mod 只作用于资源管理器的文件夹窗口，每个窗口各自保存一份颜色设置的快照。
+
+- 收到通知时设置没变化，就拦下这条通知。
+- 设置真的变了，就照常放行，切换深浅色和强调色不受影响。
+- 拦下通知约 400 ms 后会再检查一次设置。如果这期间设置变了，就把通知补发给窗口。
+
+**安装**：Windhawk → 创建新 Mod → 用 `explorer-keep-view-on-lock.wh.cpp` 的内容替换编辑器内容 → 编译 Mod → 退出编辑器。
