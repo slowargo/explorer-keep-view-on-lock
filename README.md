@@ -10,9 +10,11 @@ Win+L 锁屏后（即使立刻解锁），资源管理器文件列表的滚动�
 - 无显示器断开、无 DPI/分辨率变化、explorer.exe 未崩溃。
 
 ## 修复
-子类化 `CabinetWClass`，收到 `ImmersiveColorSet` 时比较颜色设置快照
+子类化 `CabinetWClass`，收到 `ImmersiveColorSet` 时用**该窗口自己的**颜色设置快照比较
 （AppsUseLightTheme / SystemUsesLightTheme / EnableTransparency / ColorPrevalence /
-DWM AccentColor / ColorizationColor / AccentColorMenu / 高对比度），没变化就吞掉，有变化则放行。
+DWM ColorPrevalence / AccentColor / ColorizationColor / AccentColorMenu / CurrentTheme /
+高对比度及其配色方案 / 系统颜色），没变化就吞掉，有变化则放行。
+吞掉后约 400 ms 再检查一次，若设置已变化则补发通知（应对先广播后写注册表的程序）。
 只影响资源管理器文件夹窗口，不影响任务栏。
 
 ## 安装
