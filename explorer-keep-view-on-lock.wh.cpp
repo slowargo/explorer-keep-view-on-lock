@@ -1,8 +1,8 @@
 // ==WindhawkMod==
 // @id              explorer-keep-view-on-lock
 // @name            Explorer Keep View On Lock
-// @description     Stops Explorer file lists from losing scroll position and selection after lock/unlock or sleep/resume
-// @version         1.1.0
+// @description     Stops Explorer file lists from losing scroll position and selection after lock/unlock, sleep/resume or Remote Desktop logon
+// @version         1.2.0
 // @author          slowargo
 // @github          https://github.com/slowargo
 // @include         explorer.exe
@@ -24,14 +24,25 @@ theme, high contrast scheme, system colors) is unchanged. Real theme/accent
 changes still pass through. If a notification is blocked, the settings are
 checked again ~400 ms later and the notification is delivered then if
 something did change (covers senders that broadcast before writing settings).
+
+The legacy `WM_SETTINGCHANGE("windows")` notification (win.ini [windows]
+section) has the same effect on every tab of a folder window. Windows sends
+it on Remote Desktop logon, and various programs send it at random times.
+By default the mod swallows it for Explorer folder windows; this can be
+turned off in the settings. The [windows] section mainly holds the default
+printer, so the only likely side effect is that an already-open Printers
+folder may show a stale default-printer mark until refreshed (F5).
 */
 // ==/WindhawkModReadme==
 
 // ==WindhawkModSettings==
 /*
+- blockWindowsSection: true
+  $name: Block "windows" setting change
+  $description: Swallow WM_SETTINGCHANGE("windows") for Explorer folder windows (sent on Remote Desktop logon and by various programs; resets every tab's scroll position)
 - verboseLog: false
   $name: Verbose log
-  $description: Log every ImmersiveColorSet notification and whether it was blocked
+  $description: Log every ImmersiveColorSet / "windows" notification and whether it was blocked or passed
 */
 // ==/WindhawkModSettings==
 
@@ -81,6 +92,7 @@ struct ColorSnapshot {
 std::mutex g_mutex;
 std::map<HWND, ColorSnapshot> g_windows;  // subclassed window -> its snapshot
 std::atomic<bool> g_verbose{false};
+std::atomic<bool> g_blockWindowsSection{true};
 
 // FNV-1a.
 ULONGLONG Hash(const void* data, size_t size, ULONGLONG h = 1469598103934665603ULL) {
@@ -158,12 +170,11 @@ ColorSnapshot TakeSnapshot() {
 
 // For wParam == 0 the lParam of WM_SETTINGCHANGE is NULL or a section-name
 // string (user32 marshals it as a string across processes).
-bool IsImmersiveColorSet(WPARAM wParam, LPARAM lParam) {
+bool IsSection(WPARAM wParam, LPARAM lParam, LPCWSTR section) {
     if (wParam != 0 || !lParam) {
         return false;
     }
-    return lstrcmpiW(reinterpret_cast<LPCWSTR>(lParam), kImmersiveColorSet) ==
-           0;
+    return lstrcmpiW(reinterpret_cast<LPCWSTR>(lParam), section) == 0;
 }
 
 // Compares the current settings with this window's snapshot. Returns true if
@@ -190,7 +201,18 @@ LRESULT CALLBACK CabinetSubclassProc(HWND hWnd,
                                      DWORD_PTR dwRefData) {
     switch (uMsg) {
         case WM_SETTINGCHANGE:
-            if (IsImmersiveColorSet(wParam, lParam)) {
+            if (IsSection(wParam, lParam, L"windows")) {
+                bool block = g_blockWindowsSection;
+                if (g_verbose) {
+                    Wh_Log(L"\"windows\" setting change to %p: %s", hWnd,
+                           block ? L"blocked" : L"passed (blocking disabled)");
+                }
+                if (block) {
+                    return 0;
+                }
+                break;
+            }
+            if (IsSection(wParam, lParam, kImmersiveColorSet)) {
                 if (SettingsChangedFor(hWnd)) {
                     if (g_verbose) {
                         Wh_Log(L"ImmersiveColorSet to %p: passed", hWnd);
@@ -292,6 +314,7 @@ BOOL CALLBACK EnumInitProc(HWND hWnd, LPARAM) {
 
 void LoadSettings() {
     g_verbose = Wh_GetIntSetting(L"verboseLog") != 0;
+    g_blockWindowsSection = Wh_GetIntSetting(L"blockWindowsSection") != 0;
 }
 
 }  // namespace
